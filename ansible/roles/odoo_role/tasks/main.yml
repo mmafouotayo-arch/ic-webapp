@@ -1,0 +1,66 @@
+# ============================================================
+# roles/odoo_role/tasks/main.yml
+# Tâches de déploiement Odoo via Docker Compose
+# ============================================================
+
+---
+- name: Installer Docker et Docker Compose
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Démarrer et activer Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Créer le répertoire de données Odoo
+  file:
+    path: "{{ odoo_data_dir }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copier le fichier docker-compose depuis le template
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ odoo_data_dir }}/docker-compose.yml"
+    mode: '0644'
+  become: yes
+
+- name: Arrêter les containers existants (si présents)
+  shell: docker-compose down
+  args:
+    chdir: "{{ odoo_data_dir }}"
+  ignore_errors: yes
+  become: yes
+
+- name: Lancer Odoo et PostgreSQL avec Docker Compose
+  shell: docker-compose up -d
+  args:
+    chdir: "{{ odoo_data_dir }}"
+  become: yes
+
+- name: Attendre que PostgreSQL soit prêt
+  wait_for:
+    host: localhost
+    port: "{{ postgres_port }}"
+    delay: 10
+    timeout: 60
+
+- name: Vérifier que les containers tournent
+  shell: docker-compose ps
+  args:
+    chdir: "{{ odoo_data_dir }}"
+  register: compose_status
+  become: yes
+
+- name: Afficher le statut des containers
+  debug:
+    msg: "{{ compose_status.stdout }}"

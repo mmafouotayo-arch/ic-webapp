@@ -1,0 +1,48 @@
+# ============================================================
+# roles/odoo_role/templates/docker-compose.yml.j2
+# Template Jinja2 pour déployer Odoo + PostgreSQL
+# ============================================================
+
+version: '3.8'
+
+services:
+
+  {{ postgres_service_name }}:
+    image: {{ postgres_image }}
+    container_name: {{ postgres_container_name }}
+    restart: always
+    environment:
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      POSTGRES_DB: {{ postgres_db }}
+    volumes:
+      - {{ postgres_volume_name }}:{{ odoo_data_dir }}/postgres
+    networks:
+      - {{ odoo_network_name }}
+
+  {{ odoo_service_name }}:
+    image: {{ odoo_image }}
+    container_name: {{ odoo_container_name }}
+    restart: always
+    depends_on:
+      - {{ postgres_service_name }}
+    ports:
+      - "{{ odoo_port }}:8069"
+    environment:
+      HOST: {{ postgres_service_name }}
+      PORT: {{ postgres_port }}
+      USER: {{ postgres_user }}
+      PASSWORD: {{ postgres_password }}
+    volumes:
+      - {{ odoo_data_dir }}/odoo:/var/lib/odoo
+    networks:
+      - {{ odoo_network_name }}
+
+volumes:
+  {{ postgres_volume_name }}:
+    name: {{ postgres_volume_name }}
+
+networks:
+  {{ odoo_network_name }}:
+    name: {{ odoo_network_name }}
+    driver: bridge

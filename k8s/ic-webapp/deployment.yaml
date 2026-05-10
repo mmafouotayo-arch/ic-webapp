@@ -1,0 +1,64 @@
+# ============================================================
+# ic-webapp/deployment.yaml
+# Déploiement du site vitrine IC GROUP
+# Ressource B dans l'architecture
+# ============================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ic-webapp
+  namespace: icgroup
+  labels:
+    app: ic-webapp
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ic-webapp
+  template:
+    metadata:
+      labels:
+        app: ic-webapp
+        env: prod
+    spec:
+      containers:
+        - name: ic-webapp
+          image: mafouo/ic-webapp:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: ODOO_URL
+              value: "http://odoo-service:8069"
+            - name: PGADMIN_URL
+              value: "http://pgadmin-service:80"
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "100m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+---
+# ============================================================
+# ic-webapp/service.yaml
+# Service NodePort pour accès externe au site vitrine
+# Ressource A dans l'architecture
+# ============================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: ic-webapp-service
+  namespace: icgroup
+  labels:
+    app: ic-webapp
+    env: prod
+spec:
+  type: NodePort
+  selector:
+    app: ic-webapp
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30080   # Accès via http://<minikube-ip>:30080

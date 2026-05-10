@@ -1,0 +1,37 @@
+# ============================================================
+# Dockerfile - IC GROUP Web Vitrine (version CI/CD)
+# Image : ic-webapp:<version lue depuis releases.txt>
+# Les URLs sont lues automatiquement depuis releases.txt
+# ============================================================
+
+# 1) Image de base
+FROM python:3.6-alpine
+
+# 2) Répertoire de travail
+WORKDIR /opt
+
+# 3) Copier TOUS les fichiers nécessaires (y compris releases.txt)
+COPY app.py .
+COPY releases.txt .
+COPY templates/ templates/
+COPY static/ static/
+
+# 4) Installer Flask 1.1.2
+RUN pip install flask==1.1.2
+
+# 5) Lire les URLs depuis releases.txt avec awk et les injecter
+#    comme variables d'environnement dans l'image
+RUN export ODOO_URL=$(awk '/ODOO_URL/ {sub(/^.*ODOO_URL: /, ""); print $0}' releases.txt) && \
+    export PGADMIN_URL=$(awk '/PGADMIN_URL/ {sub(/^.*PGADMIN_URL: /, ""); print $0}' releases.txt) && \
+    echo "ODOO_URL=$ODOO_URL" && \
+    echo "PGADMIN_URL=$PGADMIN_URL"
+
+ENV ODOO_URL=""
+ENV PGADMIN_URL=""
+
+# 6) Exposer le port utilisé par l'application
+EXPOSE 8080
+
+# 7) Script d'entrée qui relit les URLs au démarrage depuis releases.txt
+#    Cela permet de surcharger les valeurs via -e au docker run
+ENTRYPOINT ["python", "app.py"]

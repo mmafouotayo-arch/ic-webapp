@@ -1,0 +1,10 @@
+# ============================================================
+# namespace.yaml
+# Création du namespace icgroup
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: icgroup
+  labels:
+    env: prod

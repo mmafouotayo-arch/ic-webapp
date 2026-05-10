@@ -1,0 +1,32 @@
+# ============================================================
+# roles/pgadmin_role/vars/main.yml
+# Variables du rôle pgAdmin - modifiables selon l'environnement
+# ============================================================
+
+# Nom du container pgAdmin
+pgadmin_container_name: "pgadmin"
+
+# Nom du réseau Docker
+pgadmin_network_name: "pgadmin_network"
+
+# Répertoire local de montage des données pgAdmin
+pgadmin_data_dir: "/opt/pgadmin/data"
+
+# Nom du service dans docker-compose
+pgadmin_service_name: "pgadmin"
+
+# Identifiants pgAdmin
+pgadmin_email: "admin@icgroup.com"
+pgadmin_password: "pgadmin_password"
+
+# Port
+pgadmin_port: "80"
+
+# Image pgAdmin
+pgadmin_image: "dpage/pgadmin4:latest"
+
+# Connexion vers PostgreSQL Odoo
+odoo_postgres_host: "192.168.109.132"  # IP du serveur Odoo
+odoo_postgres_port: "5432"
+odoo_postgres_user: "odoo"
+odoo_postgres_db: "postgres"

@@ -1,0 +1,116 @@
+# ============================================================
+# odoo/odoo.yaml
+# PVC + Deployment + Service pour Odoo 13
+# Ressources C et D dans l'architecture
+# ============================================================
+
+# --- PVC pour les données Odoo (addons, filestore) ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: odoo-pvc
+  namespace: icgroup
+  labels:
+    app: odoo
+    env: prod
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+---
+# --- Deployment Odoo ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: odoo
+  namespace: icgroup
+  labels:
+    app: odoo
+    env: prod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: odoo
+  template:
+    metadata:
+      labels:
+        app: odoo
+        env: prod
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres-service 5432; do
+                echo "En attente de PostgreSQL...";
+                sleep 3;
+              done;
+              echo "PostgreSQL est prêt !"
+      containers:
+        - name: odoo
+          image: odoo:13.0
+          command: ["odoo"]
+          args:
+            - "--db_host=postgres-service"
+            - "--db_port=5432"
+            - "--db_user=odoo"
+            - "--db_password=odoo_password"
+            - "-i"
+            - "base"
+            - "--without-demo=all"
+          ports:
+            - containerPort: 8069
+          env:
+            - name: HOST
+              value: "postgres-service"
+            - name: PORT
+              value: "5432"
+            - name: USER
+              valueFrom:
+                secretKeyRef:
+                  name: icgroup-secret
+                  key: postgres-user
+            - name: PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: icgroup-secret
+                  key: postgres-password
+          volumeMounts:
+            - name: odoo-storage
+              mountPath: /var/lib/odoo
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: odoo-storage
+          persistentVolumeClaim:
+            claimName: odoo-pvc
+---
+# --- Service NodePort pour accès externe à Odoo ---
+apiVersion: v1
+kind: Service
+metadata:
+  name: odoo-service
+  namespace: icgroup
+  labels:
+    app: odoo
+    env: prod
+spec:
+  type: NodePort
+  selector:
+    app: odoo
+  ports:
+    - protocol: TCP
+      port: 8069
+      targetPort: 8069
+      nodePort: 30069

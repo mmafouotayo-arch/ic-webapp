@@ -1,0 +1,66 @@
+# ============================================================
+# roles/pgadmin_role/tasks/main.yml
+# Tâches de déploiement pgAdmin via Docker Compose
+# ============================================================
+
+---
+- name: Installer Docker et Docker Compose
+  apt:
+    name:
+      - docker.io
+      - docker-compose
+    state: present
+    update_cache: yes
+  become: yes
+
+- name: Démarrer et activer Docker
+  service:
+    name: docker
+    state: started
+    enabled: yes
+  become: yes
+
+- name: Créer le répertoire de données pgAdmin
+  file:
+    path: "{{ pgadmin_data_dir }}"
+    state: directory
+    mode: '0755'
+  become: yes
+
+- name: Copier le fichier servers.json depuis le template
+  template:
+    src: servers.json.j2
+    dest: "{{ pgadmin_data_dir }}/servers.json"
+    mode: '0644'
+  become: yes
+
+- name: Copier le fichier docker-compose depuis le template
+  template:
+    src: docker-compose.yml.j2
+    dest: "{{ pgadmin_data_dir }}/docker-compose.yml"
+    mode: '0644'
+  become: yes
+
+- name: Arrêter les containers existants (si présents)
+  shell: docker-compose down
+  args:
+    chdir: "{{ pgadmin_data_dir }}"
+  ignore_errors: yes
+  become: yes
+
+- name: Lancer pgAdmin avec Docker Compose
+  shell: docker-compose up -d
+  args:
+    chdir: "{{ pgadmin_data_dir }}"
+  become: yes
+
+- name: Vérifier que le container pgAdmin tourne
+  shell: docker-compose ps
+  args:
+    chdir: "{{ pgadmin_data_dir }}"
+  register: compose_status
+  become: yes
+
+- name: Afficher le statut du container
+  debug:
+    msg: "{{ compose_status.stdout }}"

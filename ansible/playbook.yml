@@ -1,0 +1,45 @@
+# ============================================================
+# playbook.yml - Playbook principal IC GROUP
+# Déploie Odoo sur le serveur odoo et pgAdmin sur webapp
+# ============================================================
+
+---
+- name: Déploiement Odoo + PostgreSQL
+  hosts: odoo
+  become: yes
+  vars:
+    odoo_container_name: "odoo"
+    postgres_container_name: "postgres"
+    odoo_network_name: "odoo_network"
+    postgres_volume_name: "postgres_data"
+    odoo_data_dir: "/opt/odoo/data"
+    odoo_service_name: "odoo"
+    postgres_service_name: "postgres"
+    postgres_user: "odoo"
+    postgres_password: "odoo_password"
+    postgres_db: "odoo"
+    odoo_port: "8069"
+    postgres_port: "5432"
+    odoo_image: "odoo:13.0"
+    postgres_image: "postgres:13"
+  roles:
+    - odoo_role
+
+- name: Déploiement pgAdmin + Site Vitrine
+  hosts: webapp
+  become: yes
+  vars:
+    pgadmin_container_name: "pgadmin"
+    pgadmin_network_name: "pgadmin_network"
+    pgadmin_data_dir: "/opt/pgadmin/data"
+    pgadmin_service_name: "pgadmin"
+    pgadmin_email: "admin@icgroup.com"
+    pgadmin_password: "pgadmin_password"
+    pgadmin_port: "80"
+    pgadmin_image: "dpage/pgadmin4:latest"
+    odoo_postgres_host: "192.168.109.132"
+    odoo_postgres_port: "5432"
+    odoo_postgres_user: "odoo"
+    odoo_postgres_db: "postgres"
+  roles:
+    - pgadmin_role
