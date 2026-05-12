@@ -10,7 +10,6 @@ pipeline {
         DOCKERHUB_USER = "mafouo"
         ANSIBLE_VM     = "192.168.109.130"
         ANSIBLE_USER   = "webster123"
-        SSH_KEY_PATH   = "C:\\ProgramData\\Jenkins\\.jenkins\\.ssh\\id_rsa"
     }
 
     stages {
@@ -83,7 +82,14 @@ pipeline {
             steps {
                 script {
                     echo "Déploiement via Ansible sur ${ANSIBLE_VM}..."
-                    bat "ssh -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} \"cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml\""
+                    // Copier la clé, fixer les permissions et se connecter
+                    bat """
+                        copy C:\\ProgramData\\Jenkins\\.jenkins\\.ssh\\id_rsa %TEMP%\\jenkins_key.pem
+                        icacls %TEMP%\\jenkins_key.pem /inheritance:r
+                        icacls %TEMP%\\jenkins_key.pem /grant:r "%USERNAME%:(R)"
+                        ssh -i %TEMP%\\jenkins_key.pem -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} "cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml"
+                        del %TEMP%\\jenkins_key.pem
+                    """
                 }
             }
         }
