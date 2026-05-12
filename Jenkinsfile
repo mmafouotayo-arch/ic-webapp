@@ -14,9 +14,6 @@ pipeline {
 
     stages {
 
-        // --------------------------------------------------
-        // STAGE 1 : Lire la version depuis releases.txt
-        // --------------------------------------------------
         stage('Read Version') {
             steps {
                 script {
@@ -40,9 +37,6 @@ pipeline {
             }
         }
 
-        // --------------------------------------------------
-        // STAGE 2 : BUILD
-        // --------------------------------------------------
         stage('Build') {
             steps {
                 script {
@@ -52,9 +46,6 @@ pipeline {
             }
         }
 
-        // --------------------------------------------------
-        // STAGE 3 : TEST
-        // --------------------------------------------------
         stage('Test') {
             steps {
                 script {
@@ -71,9 +62,6 @@ pipeline {
             }
         }
 
-        // --------------------------------------------------
-        // STAGE 4 : PACKAGE
-        // --------------------------------------------------
         stage('Package') {
             steps {
                 script {
@@ -90,9 +78,6 @@ pipeline {
             }
         }
 
-        // --------------------------------------------------
-        // STAGE 5 : DEPLOY via SSH PowerShell (sans sshagent)
-        // --------------------------------------------------
         stage('Deploy') {
             steps {
                 script {
@@ -102,8 +87,22 @@ pipeline {
                         keyFileVariable: 'SSH_KEY',
                         usernameVariable: 'SSH_USER'
                     )]) {
+                        // Fixer les permissions de la clé SSH sur Windows
                         bat """
-                            powershell -Command "& ssh -i '%SSH_KEY%' -o StrictHostKeyChecking=no %SSH_USER%@${ANSIBLE_VM} 'cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml'"
+                            powershell -Command "
+                                \$keyPath = '%SSH_KEY%';
+                                \$acl = Get-Acl \$keyPath;
+                                \$acl.SetAccessRuleProtection(\$true, \$false);
+                                \$rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                                    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
+                                    'Read',
+                                    'Allow'
+                                );
+                                \$acl.SetAccessRule(\$rule);
+                                Set-Acl \$keyPath \$acl;
+                                Write-Host 'Permissions SSH corrigees';
+                                ssh -i \$keyPath -o StrictHostKeyChecking=no %SSH_USER%@${ANSIBLE_VM} 'cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml'
+                            "
                         """
                     }
                 }
