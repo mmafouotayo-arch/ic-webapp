@@ -1,5 +1,5 @@
 // ============================================================
-// Jenkinsfile - Pipeline CI/CD IC GROUP (Windows - PowerShell)
+// Jenkinsfile - Pipeline CI/CD IC GROUP (Windows)
 // ============================================================
 
 pipeline {
@@ -10,6 +10,7 @@ pipeline {
         DOCKERHUB_USER = "mafouo"
         ANSIBLE_VM     = "192.168.109.130"
         ANSIBLE_USER   = "webster123"
+        SSH_KEY_PATH   = "C:\\ProgramData\\Jenkins\\.jenkins\\.ssh\\id_rsa"
     }
 
     stages {
@@ -81,30 +82,8 @@ pipeline {
         stage('Deploy') {
             steps {
                 script {
-                    echo "Déploiement via Ansible..."
-                    withCredentials([sshUserPrivateKey(
-                        credentialsId: 'ansible-ssh-key',
-                        keyFileVariable: 'SSH_KEY',
-                        usernameVariable: 'SSH_USER'
-                    )]) {
-                        // Fixer les permissions de la clé SSH sur Windows
-                        bat """
-                            powershell -Command "
-                                \$keyPath = '%SSH_KEY%';
-                                \$acl = Get-Acl \$keyPath;
-                                \$acl.SetAccessRuleProtection(\$true, \$false);
-                                \$rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-                                    [System.Security.Principal.WindowsIdentity]::GetCurrent().Name,
-                                    'Read',
-                                    'Allow'
-                                );
-                                \$acl.SetAccessRule(\$rule);
-                                Set-Acl \$keyPath \$acl;
-                                Write-Host 'Permissions SSH corrigees';
-                                ssh -i \$keyPath -o StrictHostKeyChecking=no %SSH_USER%@${ANSIBLE_VM} 'cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml'
-                            "
-                        """
-                    }
+                    echo "Déploiement via Ansible sur ${ANSIBLE_VM}..."
+                    bat "ssh -i ${SSH_KEY_PATH} -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} \"cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml\""
                 }
             }
         }
