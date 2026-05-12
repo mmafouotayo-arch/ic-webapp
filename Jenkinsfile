@@ -1,6 +1,5 @@
 // ============================================================
-// Jenkinsfile - Pipeline CI/CD IC GROUP (Compatible Windows)
-// Stages : Build → Test → Package → Deploy
+// Jenkinsfile - Pipeline CI/CD IC GROUP (Windows - PowerShell)
 // ============================================================
 
 pipeline {
@@ -21,22 +20,19 @@ pipeline {
         stage('Read Version') {
             steps {
                 script {
-                    // Compatible Windows - lire releases.txt avec PowerShell
-                    env.APP_VERSION = bat(
-                        script: '@for /f "tokens=2" %a in (\'findstr "version" releases.txt\') do @echo %a',
-                        returnStdout: true
-                    ).trim()
-
-                    env.ODOO_URL = bat(
-                        script: '@for /f "tokens=2" %a in (\'findstr "ODOO_URL" releases.txt\') do @echo %a',
-                        returnStdout: true
-                    ).trim()
-
-                    env.PGADMIN_URL = bat(
-                        script: '@for /f "tokens=2" %a in (\'findstr "PGADMIN_URL" releases.txt\') do @echo %a',
-                        returnStdout: true
-                    ).trim()
-
+                    def content = readFile('releases.txt')
+                    def lines = content.readLines()
+                    lines.each { line ->
+                        if (line.startsWith('version:')) {
+                            env.APP_VERSION = line.split(':')[1].trim()
+                        }
+                        if (line.startsWith('ODOO_URL:')) {
+                            env.ODOO_URL = line.split(':')[1].trim() + ':' + line.split(':')[2].trim()
+                        }
+                        if (line.startsWith('PGADMIN_URL:')) {
+                            env.PGADMIN_URL = line.split(':')[1].trim() + ':' + line.split(':')[2].trim()
+                        }
+                    }
                     echo "Version     : ${env.APP_VERSION}"
                     echo "ODOO_URL    : ${env.ODOO_URL}"
                     echo "PGADMIN_URL : ${env.PGADMIN_URL}"
@@ -51,9 +47,7 @@ pipeline {
             steps {
                 script {
                     echo "Build de l'image ${IMAGE_NAME}:${env.APP_VERSION}"
-                    bat """
-                        docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION} .
-                    """
+                    bat "docker build -t ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION} ."
                 }
             }
         }
@@ -64,21 +58,10 @@ pipeline {
         stage('Test') {
             steps {
                 script {
-                    echo "Test du container ic-webapp..."
-                    bat """
-                        docker run -d ^
-                            --name test-ic-webapp ^
-                            -p 8888:8080 ^
-                            -e ODOO_URL=${env.ODOO_URL} ^
-                            -e PGADMIN_URL=${env.PGADMIN_URL} ^
-                            ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION}
-                    """
+                    echo "Lancement du container de test..."
+                    bat "docker run -d --name test-ic-webapp -p 8888:8080 -e ODOO_URL=${env.ODOO_URL} -e PGADMIN_URL=${env.PGADMIN_URL} ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION}"
                     sleep(5)
-
-                    // Test HTTP avec PowerShell
-                    bat """
-                        powershell -Command "try { \$r = Invoke-WebRequest -Uri http://localhost:8888 -UseBasicParsing; if (\$r.StatusCode -eq 200) { Write-Host 'Test reussi ! Code: ' \$r.StatusCode } else { Write-Host 'Test echoue ! Code: ' \$r.StatusCode; exit 1 } } catch { Write-Host 'Erreur connexion'; exit 1 }"
-                    """
+                    bat """powershell -Command "\$r = Invoke-WebRequest -Uri http://localhost:8888 -UseBasicParsing; if (\$r.StatusCode -eq 200) { Write-Host 'Test OK: ' \$r.StatusCode } else { exit 1 }" """
                 }
             }
             post {
@@ -89,7 +72,7 @@ pipeline {
         }
 
         // --------------------------------------------------
-        // STAGE 4 : PACKAGE - Push Docker Hub
+        // STAGE 4 : PACKAGE
         // --------------------------------------------------
         stage('Package') {
             steps {
@@ -100,26 +83,22 @@ pipeline {
                         usernameVariable: 'DOCKER_USER',
                         passwordVariable: 'DOCKER_PASS'
                     )]) {
-                        bat """
-                            docker login -u %DOCKER_USER% -p %DOCKER_PASS%
-                            docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION}
-                        """
+                        bat "docker login -u %DOCKER_USER% -p %DOCKER_PASS%"
+                        bat "docker push ${DOCKERHUB_USER}/${IMAGE_NAME}:${env.APP_VERSION}"
                     }
                 }
             }
         }
 
         // --------------------------------------------------
-        // STAGE 5 : DEPLOY - Via Ansible sur la VM
+        // STAGE 5 : DEPLOY
         // --------------------------------------------------
         stage('Deploy') {
             steps {
                 script {
                     echo "Déploiement via Ansible..."
                     sshagent(['ansible-ssh-key']) {
-                        bat """
-                            ssh -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} "cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml"
-                        """
+                        bat "ssh -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} \"cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml\""
                     }
                 }
             }
@@ -128,7 +107,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Pipeline terminé avec succès ! Version ${env.APP_VERSION} déployée."
+            echo "✅ Pipeline terminé ! Version ${env.APP_VERSION} déployée."
         }
         failure {
             echo "❌ Pipeline échoué ! Vérifiez les logs."
