@@ -91,14 +91,20 @@ pipeline {
         }
 
         // --------------------------------------------------
-        // STAGE 5 : DEPLOY
+        // STAGE 5 : DEPLOY via SSH PowerShell (sans sshagent)
         // --------------------------------------------------
         stage('Deploy') {
             steps {
                 script {
                     echo "Déploiement via Ansible..."
-                    sshagent(['ansible-ssh-key']) {
-                        bat "ssh -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} \"cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml\""
+                    withCredentials([sshUserPrivateKey(
+                        credentialsId: 'ansible-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )]) {
+                        bat """
+                            powershell -Command "& ssh -i '%SSH_KEY%' -o StrictHostKeyChecking=no %SSH_USER%@${ANSIBLE_VM} 'cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml'"
+                        """
                     }
                 }
             }
