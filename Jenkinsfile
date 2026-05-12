@@ -82,13 +82,13 @@ pipeline {
             steps {
                 script {
                     echo "Déploiement via Ansible sur ${ANSIBLE_VM}..."
-                    // Copier la clé, fixer les permissions et se connecter
                     bat """
-                        copy C:\\ProgramData\\Jenkins\\.jenkins\\.ssh\\id_rsa %TEMP%\\jenkins_key.pem
-                        icacls %TEMP%\\jenkins_key.pem /inheritance:r
-                        icacls %TEMP%\\jenkins_key.pem /grant:r "%USERNAME%:(R)"
-                        ssh -i %TEMP%\\jenkins_key.pem -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} "cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml"
-                        del %TEMP%\\jenkins_key.pem
+                        copy C:\\ProgramData\\Jenkins\\.jenkins\\.ssh\\id_rsa C:\\WINDOWS\\TEMP\\jenkins_key.pem
+                        icacls C:\\WINDOWS\\TEMP\\jenkins_key.pem /inheritance:r
+                        icacls C:\\WINDOWS\\TEMP\\jenkins_key.pem /grant:r "NT AUTHORITY\\SYSTEM:(R)"
+                        icacls C:\\WINDOWS\\TEMP\\jenkins_key.pem /grant:r "BUILTIN\\Administrators:(R)"
+                        ssh -i C:\\WINDOWS\\TEMP\\jenkins_key.pem -o StrictHostKeyChecking=no ${ANSIBLE_USER}@${ANSIBLE_VM} "cd ~/ansible-role-webapp && ansible-playbook -i ansible/hosts.ini ansible/playbook.yml"
+                        del C:\\WINDOWS\\TEMP\\jenkins_key.pem
                     """
                 }
             }
